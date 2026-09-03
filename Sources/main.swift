@@ -1,3 +1,5 @@
+// ShotPath — route macOS screenshots to a file path so Claude Code reads them instead of pasting them.
+// Built by Arshan (https://github.com/ArshansGithub) with Claude Fable 5.1, 2026-09-03. MIT.
 import Cocoa
 import CoreGraphics
 import ImageIO
@@ -516,6 +518,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         loginItem.target = self
         menu.addItem(loginItem)
         menu.addItem(.separator())
+        let about = NSMenuItem(title: "About ShotPath", action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
+        menu.addItem(about)
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
@@ -585,6 +590,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         refreshMenuState()
     }
 
+    @objc private func showAbout() {
+        let a = NSAlert()
+        a.messageText = "ShotPath"
+        a.informativeText = "Routes macOS screenshots to a file path so Claude Code reads them instead of pasting them.\n\nBuilt by Arshan (github.com/ArshansGithub) with Claude Fable 5.1, 2026-09-03. MIT."
+        a.addButton(withTitle: "GitHub")
+        a.addButton(withTitle: "OK")
+        if a.runModal() == .alertFirstButtonReturn, let u = URL(string: "https://github.com/ArshansGithub/shotpath") { NSWorkspace.shared.open(u) }
+    }
     @objc private func quit() { NSApp.terminate(nil) }
 
     private var flashWork: DispatchWorkItem?

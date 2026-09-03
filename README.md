@@ -138,3 +138,9 @@ The app asks for User Notifications permission on launch. An ad-hoc signed build
 from a user directory is usually refused outright by the notification daemon, so
 ShotPath also flashes the message next to the menu bar icon for four seconds. That
 fallback always runs, so you get feedback whether or not banners are permitted.
+
+## Credits
+
+Built by [Arshan](https://github.com/ArshansGithub) with Claude Fable 5.1, during a night spent finding out why Claude Code + Fable 5.1 was burning through a usage window. The screenshot-paste rewrite was one of the causes; this is the workaround.
+
+MIT licensed. Issues and PRs welcome.
