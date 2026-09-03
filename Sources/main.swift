@@ -11,6 +11,8 @@ enum K {
     static let enabled = "ShotPathEnabled"
     static let savedTarget = "ShotPathSavedTarget"
     static let savedLocation = "ShotPathSavedLocation"
+    static let savedThumb = "ShotPathSavedShowThumbnail"
+    static let clipPrefix = "ShotPathClipPrefix"
     static let didModify = "ShotPathDidModifyDefaults"
     static let lastShot = "ShotPathLastShot"
     static let maxEdge: CGFloat = 1568
@@ -57,6 +59,7 @@ enum ScreencaptureDefaults {
         guard !d.bool(forKey: K.didModify) else { return }
         d.set(readDefault("target") ?? "", forKey: K.savedTarget)
         d.set(readDefault("location") ?? "", forKey: K.savedLocation)
+        d.set(readDefault("show-thumbnail") ?? "", forKey: K.savedThumb)
     }
 
     static func applyEnabled() {
@@ -64,8 +67,10 @@ enum ScreencaptureDefaults {
         snapshotOriginalIfNeeded()
         defaultsCmd(["write", K.domain, "target", "file"])
         defaultsCmd(["write", K.domain, "location", inboxURL.path])
+        // The floating corner thumbnail delays the file write until it dismisses (several seconds).
+        defaultsCmd(["write", K.domain, "show-thumbnail", "-bool", "false"])
         UserDefaults.standard.set(true, forKey: K.didModify)
-        log("defaults set: target=file location=\(inboxURL.path)")
+        log("defaults set: target=file location=\(inboxURL.path) show-thumbnail=false")
     }
 
     static func applyDisabled() {
@@ -85,6 +90,12 @@ enum ScreencaptureDefaults {
             defaultsCmd(["delete", K.domain, "location"])
         } else {
             defaultsCmd(["write", K.domain, "location", location])
+        }
+        let thumb = d.string(forKey: K.savedThumb) ?? ""
+        if thumb.isEmpty {
+            defaultsCmd(["delete", K.domain, "show-thumbnail"])
+        } else {
+            defaultsCmd(["write", K.domain, "show-thumbnail", "-bool", thumb == "1" ? "true" : "false"])
         }
         d.set(false, forKey: K.didModify)
         log("defaults restored: target=\(target.isEmpty ? "<deleted>" : target) location=\(location.isEmpty ? "<deleted>" : location)")
@@ -130,7 +141,10 @@ func tokenEstimate(_ w: Int, _ h: Int) -> Int {
 func copyPathToClipboard(_ path: String) {
     let pb = NSPasteboard.general
     pb.clearContents()
-    pb.setString(path, forType: .string)
+    // A bare image path is auto-inlined by Claude Code as a pasted image, which is the
+    // exact behavior we are avoiding. Wrap it in a Read instruction so it stays text.
+    let prefix = UserDefaults.standard.string(forKey: K.clipPrefix) ?? "Read the screenshot at "
+    pb.setString(prefix + path, forType: .string)
 }
 
 // MARK: - Inbox watcher

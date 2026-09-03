@@ -59,7 +59,7 @@ watches that directory, and for every screenshot that lands there:
 2. Downscales it so the longer edge is at most **1568 px**. That is Anthropic's image
    ceiling; anything larger costs bytes and upload time but not tokens.
 3. Saves it as PNG to `~/shots/YYYYMMDD-HHMMSS.png`.
-4. Puts the absolute path on the clipboard as plain text.
+4. Puts `Read the screenshot at <absolute path>` on the clipboard as plain text. A bare image path is auto-inlined by Claude Code as a pasted image, which is the exact behavior this avoids; the phrase keeps it text so the model calls `Read`. Change the prefix with `defaults write com.local.shotpath ShotPathClipPrefix "..."`.
 5. Deletes the inbox copy and reports `path copied (WxH, ~N tokens)`.
 
 Files in `~/shots` older than 24 hours are deleted on launch and hourly.
@@ -89,14 +89,17 @@ Command line flags: `--enable`, `--disable`, `--install-login-item`,
 
 ## The two system defaults it writes
 
-Enabling runs exactly these two writes:
+Enabling runs exactly these three writes:
 
 ```
 defaults write com.apple.screencapture target file
 defaults write com.apple.screencapture location ~/Library/Application\ Support/ShotPath/inbox
+defaults write com.apple.screencapture show-thumbnail -bool false
 ```
 
-Disabling restores whatever those two keys held **before ShotPath first touched them**.
+The third turns off the floating corner preview while ShotPath is enabled: macOS does not write the screenshot file until that preview dismisses, which made the path appear seconds late. It is restored on disable like the other two.
+
+Disabling restores whatever those three keys held **before ShotPath first touched them**.
 The prior values are snapshotted on the first enable, so the restore is exact rather
 than a guess at a default. To undo by hand, for a machine whose original setting was
 the stock one:
@@ -104,6 +107,7 @@ the stock one:
 ```
 defaults write com.apple.screencapture target clipboard
 defaults delete com.apple.screencapture location
+defaults delete com.apple.screencapture show-thumbnail
 ```
 
 No `killall` is needed. See the macOS 26 note below.
