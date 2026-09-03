@@ -1,54 +1,21 @@
 # ShotPath
 
 A tiny macOS menu bar app that turns the native screenshot flow into a **file path on
-the clipboard** instead of an image on the clipboard.
+the clipboard** instead of an image on the clipboard. See the correction below before assuming it saves you anything on prompt caching: it does not.
 
-## Why
+## What it is
 
-When you paste an image into Claude Code, the image is carried in the conversation as
-an inline block. On the next request that block gets re-rendered as a text pointer
-rather than replayed as the original bytes. Two things break at once: the prompt prefix
-changes, so the whole context has to be rewritten and the prompt cache is invalidated,
-and the picture itself silently drops out of the model's context. You paid for the
-image once, then lost both the image and the cache.
+When enabled, the normal screenshot shortcut puts a **file path on your clipboard** instead of an image. Paste the line into Claude Code and the model reads the file with its `Read` tool. The screenshot is downscaled to Anthropic's 1568 px image ceiling before it is saved (anything larger costs upload bytes but not tokens), and a crop window lets you hand over only the part of the screen that matters, which is the one lever that actually reduces image tokens.
 
-If the model instead **reads the image from a path**, the image arrives as a tool
-result. Tool results are replayed byte-for-byte on every subsequent turn, so the prefix
-stays stable, the cache keeps hitting, and the image stays in context for the rest of
-the session. ShotPath makes that the default: press the usual screenshot shortcut, get
-a path like `/Users/you/shots/20260902-220807.png` on your clipboard, paste it into
-Claude Code, and let it Read the file.
+## Correction, Sep 3 2026
 
-## Why this is cheaper, with the receipt
+The first version of this README claimed that pasting an image into Claude Code costs a full prompt-cache rewrite and that the model loses the image on the next turn. **That was wrong, and I retracted it** ([anthropics/claude-code#91705](https://github.com/anthropics/claude-code/issues/91705), closed).
 
-Measured on Claude Code 2.1.259, `claude-fable-5-1[1m]`, a 232k-token agentic session, one 136 KB phone screenshot pasted:
+Request bodies captured on both sides of a pasted image over ~800 later requests show the pasted message keeps the same three blocks every time: the text, the base64 image block, and a `[Image: source: …]` pointer that Claude Code sends *alongside* the image from the first request. The image bytes are identical in every request, so the prefix never breaks at that message and the model keeps the image. The cache collapse I attributed to the paste was a persisting `cd` in the same session rewriting the system prompt on the next turn ([#91706](https://github.com/anthropics/claude-code/issues/91706)), which happened to be the turn carrying the image.
 
-| request | cache_read | cache_creation | what happened |
-|---|---|---|---|
-| turn before | 231,751 | 828 | hit |
-| turn with the pasted image | 83,834 | **158,694** | the image block was re-rendered as a text pointer; prefix broke at that message |
-| turns after | climbing again | small | hits, but the model no longer has the image |
+So: pasting and `Read`ing are equivalent for the cache. ShotPath does not save you a rewrite. What it does is deliver the screenshot as a file the model can re-read at full resolution, downscale to the token ceiling, and let you crop before sending. If that's useful to you, it works; if you only wanted the cache fix, there is nothing to fix.
 
-One paste cost a 159k-token cache write (roughly $3 at Fable 5.1's 1h write rate) and the picture left the model's context. Every later question about the screenshot was answered from the model's own earlier description of it.
-
-The same image delivered as a file path and Read by the model:
-
-| | pasted | Read from path |
-|---|---|---|
-| image tokens on the turn it's introduced | ~1,500 | ~1,500 |
-| cache rewrite on the next turn | the whole suffix after that message | none, tool results are replayed byte-for-byte |
-| image still in context ten turns later | no (pointer text only) | yes |
-| per-turn cost of keeping it | 0 | ~1,500 **cached** tokens, ≈ $0.0004 |
-
-Keeping the image costs a fraction of a cent per turn. Dropping it costs one rewrite of everything after it, at the largest context the session has reached, plus the image. The pointer swap is strictly worse on both axes, which is why ShotPath routes around it.
-
-### Where the token number comes from
-
-Anthropic bills roughly `width × height / 750` tokens per image and downscales anything whose longer edge exceeds 1568 px before counting. So resolution, not file size, sets the cost, and there is a hard ceiling of about 1,600 tokens per image. A 1179×2556 phone screenshot becomes 723×1568 ≈ 1,510 tokens. Cropping to the dialog that matters (say 600×400 ≈ 320 tokens) is the only lever that reduces cost below the ceiling, which is what the crop window is for. Downscaling to 1568 px before saving removes bytes the model would never see and makes the Read tool result smaller without changing what the model gets.
-
-### Related
-
-Filed as a Claude Code issue with the same capture: <IMG link>. Part of a larger dissection of Fable 5.1 usage through Claude Code: <CC-HUB link>.
+The full investigation this came out of, with the retraction left in: [claude-code-fable-usage](https://github.com/ArshansGithub/claude-code-fable-usage).
 
 ## What it does
 
