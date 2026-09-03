@@ -59,7 +59,7 @@ watches that directory, and for every screenshot that lands there:
 2. Downscales it so the longer edge is at most **1568 px**. That is Anthropic's image
    ceiling; anything larger costs bytes and upload time but not tokens.
 3. Saves it as PNG to `~/shots/YYYYMMDD-HHMMSS.png`.
-4. Puts `Read the screenshot at <absolute path>` on the clipboard as plain text. A bare image path is auto-inlined by Claude Code as a pasted image, which is the exact behavior this avoids; the phrase keeps it text so the model calls `Read`. Change the prefix with `defaults write com.local.shotpath ShotPathClipPrefix "..."`.
+4. Puts `Read the screenshot /Users/you/shots/20260902-221500 (add .png)` on the clipboard as plain text. Claude Code's paste handler inlines any image path it finds in pasted text, wherever it sits, so the path is handed over **without its extension** and the model adds it back when it calls `Read`. Verified on 2.1.259: the paste stays text and the image arrives as a tool result. Change the prefix with `defaults write com.local.shotpath ShotPathClipPrefix "..."`.
 5. Deletes the inbox copy and reports `path copied (WxH, ~N tokens)`.
 
 Files in `~/shots` older than 24 hours are deleted on launch and hourly.

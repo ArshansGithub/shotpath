@@ -141,10 +141,15 @@ func tokenEstimate(_ w: Int, _ h: Int) -> Int {
 func copyPathToClipboard(_ path: String) {
     let pb = NSPasteboard.general
     pb.clearContents()
-    // A bare image path is auto-inlined by Claude Code as a pasted image, which is the
-    // exact behavior we are avoiding. Wrap it in a Read instruction so it stays text.
-    let prefix = UserDefaults.standard.string(forKey: K.clipPrefix) ?? "Read the screenshot at "
-    pb.setString(prefix + path, forType: .string)
+    // Claude Code's paste handler inlines ANY image path it finds in pasted text, wherever
+    // it sits, as a pasted image, which is the exact behavior we are avoiding. It keys on the
+    // file extension; the Read tool keys on the bytes. So hand over the path without its
+    // extension and tell the model to add it back. Verified: stays text, model Reads the
+    // .png, image arrives as a tool result.
+    let prefix = UserDefaults.standard.string(forKey: K.clipPrefix) ?? "Read the screenshot "
+    let noExt = (path as NSString).deletingPathExtension
+    let ext = (path as NSString).pathExtension
+    pb.setString("\(prefix)\(noExt) (add .\(ext))", forType: .string)
 }
 
 // MARK: - Inbox watcher
